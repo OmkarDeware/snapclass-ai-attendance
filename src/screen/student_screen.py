@@ -44,7 +44,7 @@ def student_dashboard():
     st.divider()
     
     
-    with st.spinner('Loding your enrolled subjects...'):
+    with st.spinner('Loading your enrolled subjects...'):
         subjects = get_students_subjects(student_id)
         logs =  get_students_attendance(student_id)
     
@@ -57,7 +57,7 @@ def student_dashboard():
         
         stats_map[sid]['total'] +=1
         
-        if logs.ger('is_present'):
+        if log.get('is_present'):
             stats_map[sid]['attended'] +=1
     
     
@@ -68,7 +68,7 @@ def student_dashboard():
         
         stats = stats_map.get(sid, {'total': 0, 'attended' : 0})
         
-        def unenroll_btn():
+        def unenroll_btn(sid =sid , sub=sub):
             if st.button('Unenroll From this Course ', type='tertiary', width='stretch', icon=':material/delete_forever:'):
                 unenroll_student_to_subject(student_id, sid)
                 st.toast(f"Unenrolled from {sub['name']} successfully!")

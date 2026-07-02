@@ -8,7 +8,7 @@ from src.database.db import enroll_student_to_subject
 @st.dialog('Enroll in Subject')
 def enroll_dialog():
     st.write('Enter the subject code provided by your teacher to enroll')
-    join_code = st.text_input('Subject Code', placeholder='Eg. BCS101')
+    join_code = st.text_input('Subject Code', placeholder='e.g. CS101')
     
     
     if st.button('Enroll now', type='primary', width='stretch'):
