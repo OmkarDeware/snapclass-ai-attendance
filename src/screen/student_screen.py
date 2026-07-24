@@ -37,7 +37,7 @@ def student_dashboard():
         st.header('Your Enrolled Subjects')
     
     with c2:
-        if st.button('Enroll in Subject', type='primary', width='stretch'):
+        if st.button('Enroll in Subject', type='primary', key="enroll_subject_btn", width='stretch'):
             enroll_dialog()
     
     
@@ -68,8 +68,14 @@ def student_dashboard():
         
         stats = stats_map.get(sid, {'total': 0, 'attended' : 0})
         
-        def unenroll_btn(sid =sid , sub=sub):
-            if st.button('Unenroll From this Course ', type='tertiary', width='stretch', icon=':material/delete_forever:'):
+        def unenroll_btn(sid=sid, sub=sub):
+            if st.button(
+                "Unenroll From this Course",
+                key=f"unenroll_{student_id}_{sid}",
+                type="tertiary",
+                width="stretch",
+                icon=":material/delete_forever:"
+            ):
                 unenroll_student_to_subject(student_id, sid)
                 st.toast(f"Unenrolled from {sub['name']} successfully!")
                 st.rerun()
@@ -105,7 +111,7 @@ def student_screen():
         header_dashboard()
         
     with c2:
-        if st.button("Go back to Home", type='secondary', key='loginbackbtn', shortcut='control+backspace'):
+        if st.button("Go back to Home", type='secondary', key="back_home_btn", shortcut='control+backspace'):
             st.session_state['login_type'] = None
             st.rerun()
     
@@ -136,7 +142,7 @@ def student_screen():
                         st.session_state["is_logged_in"] = True
                         st.session_state["user_role"] = "student"
                         st.session_state["student_data"] = student
-                        st.toast(f"Welcome Back{student['name']}")
+                        st.toast(f"Welcome Back  {student['name']}")
                         time.sleep(1)
                         st.rerun()
                 else:
@@ -158,7 +164,7 @@ def student_screen():
                 except Exception:
                     st.error('Audio data Failed!')
                 
-                if st.button('Create Account', type='primary'):
+                if st.button('Create Account',  key="create_account_btn", type='primary'):
                     if new_name:
                         with st.spinner('Creating Profile...'):
                             img = np.array(Image.open(photo_source))
