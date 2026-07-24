@@ -1,5 +1,6 @@
 import streamlit as st
 import numpy as np
+from io import BytesIO
 import pandas as pd
 
 from src.ui.base_layout import style_background_dashboard, style_base_layout
@@ -233,49 +234,131 @@ def teacher_tab_manage_subjects():
 
 def teacher_tab_attendance_records():
     st.header('Attendance Records')
-    
+
     teacher_id = st.session_state.teacher_data['teacher_id']
-    
+
     records = get_attendance_teacher(teacher_id)
-    
+
     if not records:
+        st.info("No attendance records found.")
         return
-    
-    data = []
-    
+
+    sessions = {}
+
     for r in records:
-        ts = r.get('timestamp')
-        
-        data.append({
-            "ts_group":ts.split(".")[0] if ts else None,
-            "Time": datetime.fromisoformat(ts).strftime("%Y-%m-%d %I:%M %p") if ts else "N/A",
-            "Subject": r['subjects']['name'],
-            "Subject Code" : r['subjects']['subject_code'],
-            "is_present": bool(r.get('is_present', False))
+        ts = r.get("timestamp")
+
+        session_key = (
+            ts.split(".")[0] if ts else "",
+            r["subjects"]["subject_code"]
+        )
+
+        if session_key not in sessions:
+            sessions[session_key] = {
+                "time": datetime.fromisoformat(ts).strftime("%Y-%m-%d %I:%M %p") if ts else "N/A",
+                "subject": r["subjects"]["name"],
+                "code": r["subjects"]["subject_code"],
+                "present": [],
+                "absent": []
+            }
+
+        student_name = r["students"]["name"]
+
+        if r.get("is_present"):
+            sessions[session_key]["present"].append(student_name)
+        else:
+            sessions[session_key]["absent"].append(student_name)
+
+    summary = []
+
+    for _, session in sessions.items():
+
+        summary.append({
+            "Time": session["time"],
+            "Subject": session["subject"],
+            "Subject Code": session["code"],
+            "Attendance Stats": f"✅ {len(session['present'])}/{len(session['present']) + len(session['absent'])} Students",
+            "Present": session["present"],
+            "Absent": session["absent"]
         })
-    
-    df = pd.DataFrame(data)
-    
-    
-    summary = (
-        df.groupby(['ts_group', 'Time', 'Subject', 'Subject Code'])
-        .agg(
-            Present_Count = ('is_present', 'sum'),
-            Total_Count = ('is_present', 'count')
-        ).reset_index()
-    )
-    
-    summary['Attendance Stats'] = (
-        "✅" + summary['Present_Count'].astype(str) + " /"
-        +summary['Total_Count'].astype(str) + 'Students'
-    )
-    
-    display_df = (summary.sort_values(by = 'ts_group', ascending=False)
-                [['Time', 'Subject', 'Subject Code', 'Attendance Stats']]
+
+    summary.sort(key=lambda x: x["Time"], reverse=True)
+
+    for row in summary:
+
+        with st.expander(
+            f"{row['Time']} | {row['Subject']} | {row['Attendance Stats']}"
+        ):
+
+            # ---------------- Excel Download ----------------
+
+            attendance_df = pd.DataFrame({
+                "Student Name": row["Present"] + row["Absent"],
+                "Status": (
+                    ["Present"] * len(row["Present"])
+                    + ["Absent"] * len(row["Absent"])
                 )
-    
-    st.dataframe(display_df, width='stretch', hide_index= True)
-    
+            })
+
+            summary_df = pd.DataFrame({
+                "Subject": [row["Subject"]],
+                "Subject Code": [row["Subject Code"]],
+                "Date & Time": [row["Time"]],
+                "Total Students": [len(row["Present"]) + len(row["Absent"])],
+                "Present": [len(row["Present"])],
+                "Absent": [len(row["Absent"])]
+            })
+
+            buffer = BytesIO()
+
+            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+
+                summary_df.to_excel(
+                    writer,
+                    sheet_name="Attendance",
+                    index=False,
+                    startrow=0
+                )
+
+                attendance_df.to_excel(
+                    writer,
+                    sheet_name="Attendance",
+                    index=False,
+                    startrow=4
+                )
+
+            st.download_button(
+                label="📊 Download Excel",
+                data=buffer.getvalue(),
+                file_name=f"{row['Subject Code']}_{row['Time'].replace(':','-')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"excel_{row['Time']}"
+            )
+
+            st.divider()
+
+            c1, c2 = st.columns(2)
+
+            with c1:
+
+                st.success(f"Present ({len(row['Present'])})")
+
+                if row["Present"]:
+                    for student in row["Present"]:
+                        st.write(f"✅ {student}")
+                else:
+                    st.write("No students")
+
+            with c2:
+
+                st.error(f"Absent ({len(row['Absent'])})")
+
+                if row["Absent"]:
+                    for student in row["Absent"]:
+                        st.write(f"❌ {student}")
+                else:
+                    st.write("No students")
+
 
 
 
@@ -306,7 +389,6 @@ def teacher_screen_login():
         if st.button("Go back to Home", type='secondary', key='loginbackbtn', shortcut='control+backspace'):
             st.session_state['login_type'] = None
             st.rerun()
-    
     
     st.header('Login using password', text_alignment='center')
     
